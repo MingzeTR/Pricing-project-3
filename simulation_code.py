@@ -42,6 +42,38 @@ def bond_price_sim(r_path, t):
     return bond_price
 
 
+def bond_yield_sim(int_matrix, nsims, nsteps, t):
+    # interest rate to price
+    mc_bond_price = np.empty([nsims,nsteps])
+    for n in range(0, nsims):
+        mc_bond_price[n] = bond_price_sim(int_matrix[n], t)
+    # price_std = np.std(mc_bond_price)
+    mc_bond_price = np.matrix(mc_bond_price)
+    mc_bond_price_avg = np.asarray(mc_bond_price.mean(0)).reshape(-1)
+    mc_bond_price_std = np.asarray(mc_bond_price.std(0)).reshape(-1)
+
+    mc_bond_price_upper = np.zeros(len(t))
+    mc_bond_price_lower = np.zeros(len(t))
+    for i in range(0, nsteps):
+        ci = 3 * mc_bond_price_std[i]/np.sqrt(len(t))
+        mc_bond_price_upper[i] = mc_bond_price_avg[i] + ci
+        mc_bond_price_lower[i] = mc_bond_price_avg[i] - ci
+
+
+    mc_bond_yield = np.zeros(len(t))
+    mc_bond_yield[0] = r0
+    mc_bond_yield_upper = np.zeros(len(t))
+    mc_bond_yield_upper[0] = r0
+    mc_bond_yield_lower = np.zeros(len(t))
+    mc_bond_yield_lower[0] = r0
+
+    for i in range(1, nsteps):
+        mc_bond_yield[i] = - np.log(mc_bond_price_avg[i]) / t[i]
+        mc_bond_yield_upper[i] = - np.log(mc_bond_price_upper[i]) / t[i]
+        mc_bond_yield_lower[i] = - np.log(mc_bond_price_lower[i]) / t[i]
+    return mc_bond_yield, mc_bond_yield_upper, mc_bond_yield_lower
+
+
 def analytic_a(alpha, beta, sigma, phi, eta, T, t):
     m = e ** -(alpha * (T - t))
     n = e ** -(beta * (T - t))
@@ -105,34 +137,8 @@ if __name__ == '__main__':
     int_matrix = r_path_set.reshape(1000, 100)
     # r_path_set_avg = np.asarray(r_path_set_avg).reshape(-1)
 
-    # interest rate to price
-    mc_bond_price = np.empty([nsims,nsteps])
-    for n in range(0, nsims):
-        mc_bond_price[n] = bond_price_sim(int_matrix[n], t)
-    # price_std = np.std(mc_bond_price)
-    mc_bond_price = np.matrix(mc_bond_price)
-    mc_bond_price_avg = np.asarray(mc_bond_price.mean(0)).reshape(-1)
-    mc_bond_price_std = np.asarray(mc_bond_price.std(0)).reshape(-1)
-
-    mc_bond_price_upper = np.zeros(len(t))
-    mc_bond_price_lower = np.zeros(len(t))
-    for i in range(0, nsteps):
-        ci = 3 * mc_bond_price_std[i]/np.sqrt(len(t))
-        mc_bond_price_upper[i] = mc_bond_price_avg[i] + ci
-        mc_bond_price_lower[i] = mc_bond_price_avg[i] - ci
-
-
-    mc_bond_yield = np.zeros(len(t))
-    mc_bond_yield[0] = r0
-    mc_bond_yield_upper = np.zeros(len(t))
-    mc_bond_yield_upper[0] = r0
-    mc_bond_yield_lower = np.zeros(len(t))
-    mc_bond_yield_lower[0] = r0
-
-    for i in range(1, nsteps):
-        mc_bond_yield[i] = - np.log(mc_bond_price_avg[i]) / t[i]
-        mc_bond_yield_upper[i] = - np.log(mc_bond_price_upper[i]) / t[i]
-        mc_bond_yield_lower[i] = - np.log(mc_bond_price_lower[i]) / t[i]
+    # simulate yield curve
+    mc_bond_yield, mc_bond_yield_upper, mc_bond_yield_lower = bond_yield_sim(int_matrix, nsims, nsteps, t)
 
     # analytic formula
     analytic_bond_yield = np.zeros(nsteps)

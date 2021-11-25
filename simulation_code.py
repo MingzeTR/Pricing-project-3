@@ -32,6 +32,16 @@ def risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, 
     return theta_path, r_path
 
 
+def bond_price_sim(r_path, t):
+    dt = t[1] - t[0]
+    bank_account = np.zeros(len(t))
+    bank_account[0] = 1
+    for i in range(0, len(t) - 1):
+        bank_account[i+1] = bank_account[i] + r_path[i] * bank_account[i] * dt
+    bond_price = [1 / b for b in bank_account]
+    return bond_price
+
+
 def analytic_a(alpha, beta, sigma, phi, eta, T, t):
     m = e ** -(alpha * (T - t))
     n = e ** -(beta * (T - t))
@@ -83,25 +93,60 @@ if __name__ == '__main__':
 
     t = np.linspace(0, T, nsteps)
 
+    # MC simulation
     theta_path_set = np.zeros((nsims, nsteps))
     r_path_set = np.zeros((nsims, nsteps))
 
-    # for i in range(0, nsims):
-    #     w_sim_r = Sim_Brownian_Motion(t)
-    #     w_sim_theta = Sim_Brownian_Motion(t)
-    #
-    #     [theta_path_set[i:], r_path_set[i:]] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, w_sim_theta)
+    # simulate interest rate
+    for i in range(0, nsims):
+        w_sim_r = Sim_Brownian_Motion(t)
+        w_sim_theta = Sim_Brownian_Motion(t)
+        [theta_path_set[i:], r_path_set[i:]] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, w_sim_theta)
+    int_matrix = r_path_set.reshape(1000, 100)
+    # r_path_set_avg = np.asarray(r_path_set_avg).reshape(-1)
 
-    # mc_bond_yield = int_matrix = np.matrix(r_path_set.reshape(1000,100)).mean(0)
+    # interest rate to price
+    mc_bond_price = np.empty([nsims,nsteps])
+    for n in range(0, nsims):
+        mc_bond_price[n] = bond_price_sim(int_matrix[n], t)
+    # price_std = np.std(mc_bond_price)
+    mc_bond_price = np.matrix(mc_bond_price)
+    mc_bond_price_avg = np.asarray(mc_bond_price.mean(0)).reshape(-1)
+    mc_bond_price_std = np.asarray(mc_bond_price.std(0)).reshape(-1)
 
+    mc_bond_price_upper = np.zeros(len(t))
+    mc_bond_price_lower = np.zeros(len(t))
+    for i in range(0, nsteps):
+        ci = 3 * mc_bond_price_std[i]/np.sqrt(len(t))
+        mc_bond_price_upper[i] = mc_bond_price_avg[i] + ci
+        mc_bond_price_lower[i] = mc_bond_price_avg[i] - ci
+
+
+    mc_bond_yield = np.zeros(len(t))
+    mc_bond_yield[0] = r0
+    mc_bond_yield_upper = np.zeros(len(t))
+    mc_bond_yield_upper[0] = r0
+    mc_bond_yield_lower = np.zeros(len(t))
+    mc_bond_yield_lower[0] = r0
+
+    for i in range(1, nsteps):
+        mc_bond_yield[i] = - np.log(mc_bond_price_avg[i]) / t[i]
+        mc_bond_yield_upper[i] = - np.log(mc_bond_price_upper[i]) / t[i]
+        mc_bond_yield_lower[i] = - np.log(mc_bond_price_lower[i]) / t[i]
+
+    # analytic formula
     analytic_bond_yield = np.zeros(nsteps)
     analytic_bond_yield[0] = r0
     for i in range(1, nsteps):
         analytic_bond_yield[i] = analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi, eta, t[i], t=0)
 
-    # plt.plot(t, np.asarray(mc_bond_yield).reshape(-1), label='MC bond yield')
+    plt.plot(t, mc_bond_yield, label='MC bond yield')
+    plt.plot(t, mc_bond_yield_upper, label='MC bond yield upper')
+    plt.plot(t, mc_bond_yield_lower, label='MC bond yield lower')
+
     plt.plot(t, analytic_bond_yield, label='Analytic bond yield')
     plt.xlabel('Time')
     plt.ylabel('Yield')
     plt.legend()
-    # plt.savefig('A3_Q2.jpg')
+    plt.savefig('A3_Q2.jpg')
+

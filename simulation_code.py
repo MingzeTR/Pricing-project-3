@@ -174,3 +174,114 @@ if __name__ == '__main__':
     plt.legend()
     plt.savefig('A3_Q2_MeanRevert.jpg')
 
+
+    # Q3
+    theta_bond_yield = np.empty([5, nsteps])
+    theta_range = [0.02, 0.05, 0.1, 0.3, 0.5]
+    for i in range(5):
+        for j in range(nsteps):
+            theta_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma, theta_range[i], phi, eta, t[j], t=0)
+    plt.figure(3)
+    for i in range(5):
+        plt.plot(t, theta_bond_yield[i])
+    plt.xlabel('Time')
+    plt.ylabel('Yield')
+    plt.title('Analytic Term Structure of Yield Curve with Different Long Run Interest Rate')
+    plt.legend(['\u0398_0 = 0.02', '\u0398_0 = 0.05', '\u0398_0 = 0.1', '\u0398_0 = 0.3', '\u0398_0 = 0.5'])
+    plt.savefig('A3_Q3_theta.jpg')
+
+    r_bond_yield = np.empty([5, nsteps])
+    r_range = [0.02, 0.05, 0.1, 0.3, 0.5]
+    for i in range(5):
+        for j in range(nsteps):
+            r_bond_yield[i, j] = analytic_formula_curve(r_range[i], alpha, beta, sigma, theta0, phi, eta, t[j], t=0)
+    plt.figure(4)
+    for i in range(5):
+        plt.plot(t, r_bond_yield[i])
+    plt.xlabel('Time')
+    plt.ylabel('Yield')
+    plt.title('Analytic Term Structure of Yield Curve with Different Short Run Interest Rate')
+    plt.legend(['r_0 = 0.02', 'r_0 = 0.05', 'r_0 = 0.1', 'r_0 = 0.3', 'r_0 = 0.5'])
+    plt.savefig('A3_Q3_r.jpg')
+
+    alpha_bond_yield = np.empty([5, nsteps])
+    alpha_range = [0.02, 0.1, 0.5, 0.8, 2]
+    for i in range(5):
+        for j in range(nsteps):
+            alpha_bond_yield[i, j] = analytic_formula_curve(r0, alpha_range[i], beta, sigma, theta0, phi, eta, t[j], t=0)
+    plt.figure(5)
+    for i in range(5):
+        plt.plot(t, alpha_bond_yield[i])
+    plt.xlabel('Time')
+    plt.ylabel('Yield')
+    plt.title('Analytic Term Structure of Yield Curve with Different Alpha')
+    plt.legend(['\u03B1 = 0.02', '\u03B1 = 0.1', '\u03B1 = 0.5', '\u03B1 = 0.8', '\u03B1 = 2'])
+    plt.savefig('A3_Q3_alpha.jpg')
+
+    beta_bond_yield = np.empty([5, nsteps])
+    beta_range = [0.02, 0.1, 0.5, 0.8, 2]
+    for i in range(5):
+        for j in range(nsteps):
+            beta_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta_range[i], sigma, theta0, phi, eta, t[j], t=0)
+    plt.figure(6)
+    for i in range(5):
+        plt.plot(t, beta_bond_yield[i])
+    plt.xlabel('Time')
+    plt.ylabel('Yield')
+    plt.title('Analytic Term Structure of Yield Curve with Different Beta')
+    plt.legend(['\u03B2 = 0.02', '\u03B2 = 0.1', '\u03B2 = 0.5', '\u03B2 = 0.8', '\u03B2 = 2'])
+    plt.savefig('A3_Q3_beta.jpg')
+
+    eta_bond_yield = np.empty([5, nsteps])
+    eta_range = [0.005, 0.05, 0.1, 0.15, 0.2]
+    for i in range(5):
+        for j in range(nsteps):
+            eta_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi, eta_range[i], t[j], t=0)
+    plt.figure(7)
+    for i in range(5):
+        plt.plot(t, eta_bond_yield[i])
+    plt.xlabel('Time')
+    plt.ylabel('Yield')
+    plt.title('Analytic Term Structure of Yield Curve with Different Eta')
+    plt.legend(['\u03B7 = 0.005', '\u03B7 = 0.05', '\u03B7 = 0.1', '\u03B7 = 0.15', '\u03B7 = 0.2'])
+    plt.savefig('A3_Q3_eta.jpg')
+
+    sigma_bond_yield = np.empty([5, nsteps])
+    sigma_range = [0.005, 0.05, 0.1, 0.15, 0.2]
+    for i in range(5):
+        for j in range(nsteps):
+            sigma_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma_range[i], theta0, phi, eta, t[j], t=0)
+    plt.figure(8)
+    for i in range(5):
+        plt.plot(t, sigma_bond_yield[i])
+    plt.xlabel('Time')
+    plt.ylabel('Yield')
+    plt.title('Analytic Term Structure of Yield Curve with Different Sigma')
+    plt.legend(['\u03C3 = 0.005', '\u03C3 = 0.05', '\u03C3 = 0.1', '\u03C3 = 0.15', '\u03C3 = 0.2'])
+    plt.savefig('A3_Q3_sigma.jpg')
+
+    phi_bond_yield = np.empty([5, nsteps])
+    phi_range = [0.005, 0.02, 0.1, 0.5, 0.8]
+    for i in range(5):
+        for j in range(nsteps):
+            phi_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi_range[i], eta, t[j], t=0)
+    plt.figure(9)
+    for i in range(5):
+        plt.plot(t, phi_bond_yield[i])
+    plt.xlabel('Time')
+    plt.ylabel('Yield')
+    plt.title('Analytic Term Structure of Yield Curve with Different Phi')
+    plt.legend(['\u03C6 = 0.005', '\u03C6 = 0.02', '\u03C6 = 0.1', '\u03C6 = 0.5', '\u03C6 = 0.8'])
+    plt.savefig('A3_Q3_phi.jpg')
+
+
+
+
+
+
+
+
+
+
+
+

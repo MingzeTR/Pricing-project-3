@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 from scipy import e
+import argparse
 
 
 def Sim_Brownian_Motion(t):
@@ -30,6 +31,15 @@ def risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, 
         r_path[i+1] = r_path[i] + alpha * (theta_path[i] - r_path[i]) * dt + sigma * (w_sim_r[i+1] - w_sim_r[i])
 
     return theta_path, r_path
+
+
+def bond_price(t1, t2, t, step, r_path):
+    dt = t[1] - t[0]
+    bank_account = np.zeros(int(t2 * step)+1)
+    bank_account[0] = 1
+    for i in range(0, t2 * step):
+        bank_account[i+1] = bank_account[i] + r_path[i] * bank_account[i] * dt
+    return bank_account[t1 * step] / bank_account[t2 * step]
 
 
 def bond_price_sim(r_path, t):
@@ -113,166 +123,214 @@ def analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi, eta, T, t):
             - analytic_a(alpha, beta, sigma, phi, eta, T, t)) / (T - t)
 
 
-
 if __name__ == '__main__':
-    T = 10
-    nsteps = 40
-    nsims = 1000
-    r0 = 0.02
-    alpha = 3
-    sigma = 0.01
-    theta0 = 0.03
-    beta = 1
-    phi = 0.05
-    eta = 0.005
+    parser = argparse.ArgumentParser(description='Run different questions')
+    parser.add_argument('--q23', action='store_true')
+    parser.add_argument('--q4', action='store_true')
 
-    t = np.linspace(0, T, nsteps)
+    args = parser.parse_args(['--q4'])
 
-    # MC simulation
-    theta_path_set = np.zeros((nsims, nsteps))
-    r_path_set = np.zeros((nsims, nsteps))
+    if args.q23:
 
-    # simulate interest rate
-    for i in range(0, nsims):
-        w_sim_r = Sim_Brownian_Motion(t)
-        w_sim_theta = Sim_Brownian_Motion(t)
-        [theta_path_set[i:], r_path_set[i:]] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, w_sim_theta)
-    int_matrix = r_path_set.reshape(nsims, nsteps)
-    # r_path_set_avg = np.asarray(r_path_set_avg).reshape(-1)
+        T = 10
+        nsteps = 40
+        nsims = 1000
+        r0 = 0.02
+        alpha = 3
+        sigma = 0.01
+        theta0 = 0.03
+        beta = 1
+        phi = 0.05
+        eta = 0.005
 
-    # simulate yield curve
-    mc_bond_yield, mc_bond_yield_upper, mc_bond_yield_lower = bond_yield_sim(int_matrix, nsims, nsteps, t)
+        t = np.linspace(0, T, nsteps)
 
-    # analytic formula
-    analytic_bond_yield = np.zeros(nsteps)
-    analytic_bond_yield[0] = r0
-    for i in range(1, nsteps):
-        analytic_bond_yield[i] = analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi, eta, t[i], t=0)
+        # MC simulation
+        theta_path_set = np.zeros((nsims, nsteps))
+        r_path_set = np.zeros((nsims, nsteps))
 
-    # analytic vs mc
-    plt.figure(1)
-    plt.errorbar(t, mc_bond_yield, yerr=[mc_bond_yield_lower,mc_bond_yield_upper], fmt='-', elinewidth=0.5, capsize=2, label='MC bond yield with error band')
-    plt.plot(t, analytic_bond_yield, label='Analytic bond yield')
-    plt.xlabel('Time')
-    plt.ylabel('Yield')
-    plt.title('Analytic vs Monte Carlo Simulation  Bond Yield Comparison')
-    plt.legend()
-    plt.savefig('A3_Q2_MCvsAna.jpg')
+        # simulate interest rate
+        for i in range(0, nsims):
+            w_sim_r = Sim_Brownian_Motion(t)
+            w_sim_theta = Sim_Brownian_Motion(t)
+            [theta_path_set[i:], r_path_set[i:]] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, w_sim_theta)
+        int_matrix = r_path_set.reshape(nsims, nsteps)
+        # r_path_set_avg = np.asarray(r_path_set_avg).reshape(-1)
 
-    # mean reverting graphs
-    w_sim_r_for_graph = Sim_Brownian_Motion(np.linspace(0, T, nsims))
-    w_sim_theta_for_graph = Sim_Brownian_Motion(np.linspace(0, T, nsims))
-    [theta_path_set_for_graph, r_path_set_for_graph] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, np.linspace(0, T, nsims), w_sim_r_for_graph,
-                                                                 w_sim_theta_for_graph)
-    plt.figure(2)
-    plt.plot(np.linspace(0, T, nsims), theta_path_set_for_graph, label='Long Run Interest Rate')
-    plt.plot(np.linspace(0, T, nsims), r_path_set_for_graph, label='Short Run Interest Rate')
-    plt.plot(np.linspace(0, T, nsims), np.ones(nsims)*phi, label='Mean Reverting Level (\u03C6)')
-    plt.xlabel('Time')
-    plt.ylabel('Rate')
-    plt.title('Stochastic Interest Rate Simulation')
-    plt.legend()
-    plt.savefig('A3_Q2_MeanRevert.jpg')
+        # simulate yield curve
+        mc_bond_yield, mc_bond_yield_upper, mc_bond_yield_lower = bond_yield_sim(int_matrix, nsims, nsteps, t)
+
+        # analytic formula
+        analytic_bond_yield = np.zeros(nsteps)
+        analytic_bond_yield[0] = r0
+        for i in range(1, nsteps):
+            analytic_bond_yield[i] = analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi, eta, t[i], t=0)
+
+        # analytic vs mc
+        plt.figure(1)
+        plt.errorbar(t, mc_bond_yield, yerr=[mc_bond_yield_lower,mc_bond_yield_upper], fmt='-', elinewidth=0.5, capsize=2, label='MC bond yield with error band')
+        plt.plot(t, analytic_bond_yield, label='Analytic bond yield')
+        plt.xlabel('Time')
+        plt.ylabel('Yield')
+        plt.title('Analytic vs Monte Carlo Simulation  Bond Yield Comparison')
+        plt.legend()
+        plt.savefig('A3_Q2_MCvsAna.jpg')
+
+        # mean reverting graphs
+        w_sim_r_for_graph = Sim_Brownian_Motion(np.linspace(0, T, nsims))
+        w_sim_theta_for_graph = Sim_Brownian_Motion(np.linspace(0, T, nsims))
+        [theta_path_set_for_graph, r_path_set_for_graph] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, np.linspace(0, T, nsims), w_sim_r_for_graph,
+                                                                     w_sim_theta_for_graph)
+        plt.figure(2)
+        plt.plot(np.linspace(0, T, nsims), theta_path_set_for_graph, label='Long Run Interest Rate')
+        plt.plot(np.linspace(0, T, nsims), r_path_set_for_graph, label='Short Run Interest Rate')
+        plt.plot(np.linspace(0, T, nsims), np.ones(nsims)*phi, label='Mean Reverting Level (\u03C6)')
+        plt.xlabel('Time')
+        plt.ylabel('Rate')
+        plt.title('Stochastic Interest Rate Simulation')
+        plt.legend()
+        plt.savefig('A3_Q2_MeanRevert.jpg')
 
 
-    # Q3
-    theta_bond_yield = np.empty([5, nsteps])
-    theta_range = [0.02, 0.05, 0.1, 0.3, 0.5]
-    for i in range(5):
-        for j in range(nsteps):
-            theta_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma, theta_range[i], phi, eta, t[j], t=0)
-    plt.figure(3)
-    for i in range(5):
-        plt.plot(t, theta_bond_yield[i])
-    plt.xlabel('Time')
-    plt.ylabel('Yield')
-    plt.title('Analytic Term Structure of Yield Curve with Different Long Run Interest Rate')
-    plt.legend(['\u0398_0 = 0.02', '\u0398_0 = 0.05', '\u0398_0 = 0.1', '\u0398_0 = 0.3', '\u0398_0 = 0.5'])
-    plt.savefig('A3_Q3_theta.jpg')
+        # Q3
+        theta_bond_yield = np.empty([5, nsteps])
+        theta_range = [0.02, 0.05, 0.1, 0.3, 0.5]
+        for i in range(5):
+            for j in range(nsteps):
+                theta_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma, theta_range[i], phi, eta, t[j], t=0)
+        plt.figure(3)
+        for i in range(5):
+            plt.plot(t, theta_bond_yield[i])
+        plt.xlabel('Time')
+        plt.ylabel('Yield')
+        plt.title('Analytic Term Structure of Yield Curve with Different Long Run Interest Rate')
+        plt.legend(['\u0398_0 = 0.02', '\u0398_0 = 0.05', '\u0398_0 = 0.1', '\u0398_0 = 0.3', '\u0398_0 = 0.5'])
+        plt.savefig('A3_Q3_theta.jpg')
 
-    r_bond_yield = np.empty([5, nsteps])
-    r_range = [0.02, 0.05, 0.1, 0.3, 0.5]
-    for i in range(5):
-        for j in range(nsteps):
-            r_bond_yield[i, j] = analytic_formula_curve(r_range[i], alpha, beta, sigma, theta0, phi, eta, t[j], t=0)
-    plt.figure(4)
-    for i in range(5):
-        plt.plot(t, r_bond_yield[i])
-    plt.xlabel('Time')
-    plt.ylabel('Yield')
-    plt.title('Analytic Term Structure of Yield Curve with Different Short Run Interest Rate')
-    plt.legend(['r_0 = 0.02', 'r_0 = 0.05', 'r_0 = 0.1', 'r_0 = 0.3', 'r_0 = 0.5'])
-    plt.savefig('A3_Q3_r.jpg')
+        r_bond_yield = np.empty([5, nsteps])
+        r_range = [0.02, 0.05, 0.1, 0.3, 0.5]
+        for i in range(5):
+            for j in range(nsteps):
+                r_bond_yield[i, j] = analytic_formula_curve(r_range[i], alpha, beta, sigma, theta0, phi, eta, t[j], t=0)
+        plt.figure(4)
+        for i in range(5):
+            plt.plot(t, r_bond_yield[i])
+        plt.xlabel('Time')
+        plt.ylabel('Yield')
+        plt.title('Analytic Term Structure of Yield Curve with Different Short Run Interest Rate')
+        plt.legend(['r_0 = 0.02', 'r_0 = 0.05', 'r_0 = 0.1', 'r_0 = 0.3', 'r_0 = 0.5'])
+        plt.savefig('A3_Q3_r.jpg')
 
-    alpha_bond_yield = np.empty([5, nsteps])
-    alpha_range = [0.02, 0.1, 0.5, 0.8, 2]
-    for i in range(5):
-        for j in range(nsteps):
-            alpha_bond_yield[i, j] = analytic_formula_curve(r0, alpha_range[i], beta, sigma, theta0, phi, eta, t[j], t=0)
-    plt.figure(5)
-    for i in range(5):
-        plt.plot(t, alpha_bond_yield[i])
-    plt.xlabel('Time')
-    plt.ylabel('Yield')
-    plt.title('Analytic Term Structure of Yield Curve with Different Alpha')
-    plt.legend(['\u03B1 = 0.02', '\u03B1 = 0.1', '\u03B1 = 0.5', '\u03B1 = 0.8', '\u03B1 = 2'])
-    plt.savefig('A3_Q3_alpha.jpg')
+        alpha_bond_yield = np.empty([5, nsteps])
+        alpha_range = [0.02, 0.1, 0.5, 0.8, 2]
+        for i in range(5):
+            for j in range(nsteps):
+                alpha_bond_yield[i, j] = analytic_formula_curve(r0, alpha_range[i], beta, sigma, theta0, phi, eta, t[j], t=0)
+        plt.figure(5)
+        for i in range(5):
+            plt.plot(t, alpha_bond_yield[i])
+        plt.xlabel('Time')
+        plt.ylabel('Yield')
+        plt.title('Analytic Term Structure of Yield Curve with Different Alpha')
+        plt.legend(['\u03B1 = 0.02', '\u03B1 = 0.1', '\u03B1 = 0.5', '\u03B1 = 0.8', '\u03B1 = 2'])
+        plt.savefig('A3_Q3_alpha.jpg')
 
-    beta_bond_yield = np.empty([5, nsteps])
-    beta_range = [0.02, 0.1, 0.5, 0.8, 2]
-    for i in range(5):
-        for j in range(nsteps):
-            beta_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta_range[i], sigma, theta0, phi, eta, t[j], t=0)
-    plt.figure(6)
-    for i in range(5):
-        plt.plot(t, beta_bond_yield[i])
-    plt.xlabel('Time')
-    plt.ylabel('Yield')
-    plt.title('Analytic Term Structure of Yield Curve with Different Beta')
-    plt.legend(['\u03B2 = 0.02', '\u03B2 = 0.1', '\u03B2 = 0.5', '\u03B2 = 0.8', '\u03B2 = 2'])
-    plt.savefig('A3_Q3_beta.jpg')
+        beta_bond_yield = np.empty([5, nsteps])
+        beta_range = [0.02, 0.1, 0.5, 0.8, 2]
+        for i in range(5):
+            for j in range(nsteps):
+                beta_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta_range[i], sigma, theta0, phi, eta, t[j], t=0)
+        plt.figure(6)
+        for i in range(5):
+            plt.plot(t, beta_bond_yield[i])
+        plt.xlabel('Time')
+        plt.ylabel('Yield')
+        plt.title('Analytic Term Structure of Yield Curve with Different Beta')
+        plt.legend(['\u03B2 = 0.02', '\u03B2 = 0.1', '\u03B2 = 0.5', '\u03B2 = 0.8', '\u03B2 = 2'])
+        plt.savefig('A3_Q3_beta.jpg')
 
-    eta_bond_yield = np.empty([5, nsteps])
-    eta_range = [0.005, 0.05, 0.1, 0.15, 0.2]
-    for i in range(5):
-        for j in range(nsteps):
-            eta_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi, eta_range[i], t[j], t=0)
-    plt.figure(7)
-    for i in range(5):
-        plt.plot(t, eta_bond_yield[i])
-    plt.xlabel('Time')
-    plt.ylabel('Yield')
-    plt.title('Analytic Term Structure of Yield Curve with Different Eta')
-    plt.legend(['\u03B7 = 0.005', '\u03B7 = 0.05', '\u03B7 = 0.1', '\u03B7 = 0.15', '\u03B7 = 0.2'])
-    plt.savefig('A3_Q3_eta.jpg')
+        eta_bond_yield = np.empty([5, nsteps])
+        eta_range = [0.005, 0.05, 0.1, 0.15, 0.2]
+        for i in range(5):
+            for j in range(nsteps):
+                eta_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi, eta_range[i], t[j], t=0)
+        plt.figure(7)
+        for i in range(5):
+            plt.plot(t, eta_bond_yield[i])
+        plt.xlabel('Time')
+        plt.ylabel('Yield')
+        plt.title('Analytic Term Structure of Yield Curve with Different Eta')
+        plt.legend(['\u03B7 = 0.005', '\u03B7 = 0.05', '\u03B7 = 0.1', '\u03B7 = 0.15', '\u03B7 = 0.2'])
+        plt.savefig('A3_Q3_eta.jpg')
 
-    sigma_bond_yield = np.empty([5, nsteps])
-    sigma_range = [0.005, 0.05, 0.1, 0.15, 0.2]
-    for i in range(5):
-        for j in range(nsteps):
-            sigma_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma_range[i], theta0, phi, eta, t[j], t=0)
-    plt.figure(8)
-    for i in range(5):
-        plt.plot(t, sigma_bond_yield[i])
-    plt.xlabel('Time')
-    plt.ylabel('Yield')
-    plt.title('Analytic Term Structure of Yield Curve with Different Sigma')
-    plt.legend(['\u03C3 = 0.005', '\u03C3 = 0.05', '\u03C3 = 0.1', '\u03C3 = 0.15', '\u03C3 = 0.2'])
-    plt.savefig('A3_Q3_sigma.jpg')
+        sigma_bond_yield = np.empty([5, nsteps])
+        sigma_range = [0.005, 0.05, 0.1, 0.15, 0.2]
+        for i in range(5):
+            for j in range(nsteps):
+                sigma_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma_range[i], theta0, phi, eta, t[j], t=0)
+        plt.figure(8)
+        for i in range(5):
+            plt.plot(t, sigma_bond_yield[i])
+        plt.xlabel('Time')
+        plt.ylabel('Yield')
+        plt.title('Analytic Term Structure of Yield Curve with Different Sigma')
+        plt.legend(['\u03C3 = 0.005', '\u03C3 = 0.05', '\u03C3 = 0.1', '\u03C3 = 0.15', '\u03C3 = 0.2'])
+        plt.savefig('A3_Q3_sigma.jpg')
 
-    phi_bond_yield = np.empty([5, nsteps])
-    phi_range = [0.005, 0.02, 0.1, 0.5, 0.8]
-    for i in range(5):
-        for j in range(nsteps):
-            phi_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi_range[i], eta, t[j], t=0)
-    plt.figure(9)
-    for i in range(5):
-        plt.plot(t, phi_bond_yield[i])
-    plt.xlabel('Time')
-    plt.ylabel('Yield')
-    plt.title('Analytic Term Structure of Yield Curve with Different Phi')
-    plt.legend(['\u03C6 = 0.005', '\u03C6 = 0.02', '\u03C6 = 0.1', '\u03C6 = 0.5', '\u03C6 = 0.8'])
-    plt.savefig('A3_Q3_phi.jpg')
+        phi_bond_yield = np.empty([5, nsteps])
+        phi_range = [0.005, 0.02, 0.1, 0.5, 0.8]
+        for i in range(5):
+            for j in range(nsteps):
+                phi_bond_yield[i, j] = analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi_range[i], eta, t[j], t=0)
+        plt.figure(9)
+        for i in range(5):
+            plt.plot(t, phi_bond_yield[i])
+        plt.xlabel('Time')
+        plt.ylabel('Yield')
+        plt.title('Analytic Term Structure of Yield Curve with Different Phi')
+        plt.legend(['\u03C6 = 0.005', '\u03C6 = 0.02', '\u03C6 = 0.1', '\u03C6 = 0.5', '\u03C6 = 0.8'])
+        plt.savefig('A3_Q3_phi.jpg')
+
+    if args.q4:
+        # Q4
+        t1 = 4
+        t2 = 6
+        nsteps = 40
+        nsims = 1000
+        r0 = 0.02
+        alpha = 3
+        sigma = 0.01
+        theta0 = 0.03
+        beta = 1
+        phi = 0.05
+        eta = 0.005
+        steps = int(nsteps / t2)
+
+        t = np.linspace(0, t2, nsteps)
+
+        # MC simulation
+        theta_path_set = np.zeros((nsims, nsteps))
+        r_path_set = np.zeros((nsims, nsteps))
+
+        for i in range(0, nsims):
+            w_sim_r = Sim_Brownian_Motion(t)
+            w_sim_theta = Sim_Brownian_Motion(t)
+            [theta_path_set[i:], r_path_set[i:]] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, w_sim_theta)
+        int_matrix = r_path_set.reshape(nsims, nsteps)
+
+        p0_t1 = np.zeros(nsims)
+        p0_t2 = np.zeros(nsims)
+        pt1_t2 = np.zeros(nsims)
+        for n in range(0, nsims):
+            p0_t1[n] = bond_price(0, t1, t, steps, int_matrix[n])
+            p0_t2[n] = bond_price(0, t2, t, steps, int_matrix[n])
+            pt1_t2[n] = bond_price(t1, t2, t, steps, int_matrix[n])
+
+        k = np.mean(p0_t2) / np.mean(p0_t1)
+        pt1_t2_avg = np.mean(pt1_t2)
+
+        print(k, pt1_t2_avg)
+
 
 
 

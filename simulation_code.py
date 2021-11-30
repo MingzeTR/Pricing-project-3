@@ -123,12 +123,46 @@ def analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi, eta, T, t):
             - analytic_a(alpha, beta, sigma, phi, eta, T, t)) / (T - t)
 
 
+def swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix,t1, t2, k_param):
+    # fixed leg value
+    fixed_leg = np.zeros(nsims)
+    for i in range(nsims):
+        for j in range(1, tenure_steps):
+            fixed_leg[i] += bond_price(0, int(tenure[j]), t, tsteps, int_matrix[i]) * 0.25
+    annuity = np.mean(fixed_leg)
+
+    swap_rate = np.zeros(nsims)
+    for n in range(0, nsims):
+        swap_rate[n] = (bond_price(0, t1, t, steps, int_matrix[n])
+                        - bond_price(0, t2, t, steps, int_matrix[n])) / fixed_leg[n]
+    swap_rate_avg = np.mean(swap_rate)
+
+    # simulate swap rate at t0
+    fixed_leg_sim = np.zeros(nsims)
+    swap_rate_sim = np.zeros(nsims)
+    value_sim = np.zeros(nsims)
+    for n in range(0, nsims):
+        for j in range(1, tenure_steps):
+            fixed_leg_sim[n] += bond_price(t1, int(tenure[j]), t, tsteps, int_matrix[n]) * 0.25
+        swap_rate_sim[n] = (bond_price(t1, t1, t, steps, int_matrix[n])
+                            - bond_price(t1, t2, t, steps, int_matrix[n])) / fixed_leg_sim[n]
+        value_sim[n] = annuity * max(swap_rate_sim[n] - k_param * swap_rate_avg, 0)
+
+    value_sim_avg = np.mean(value_sim)
+
+    omega = 2 * norm.ppf((value_sim_avg / (annuity * swap_rate_avg) + k_param) / (1 + k_param))
+    eta = np.sqrt(omega / 3)
+
+    return [eta, swap_rate_avg]
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run different questions')
     parser.add_argument('--q23', action='store_true')
     parser.add_argument('--q4', action='store_true')
+    parser.add_argument('--q5', action='store_true')
 
-    args = parser.parse_args(['--q4'])
+    args = parser.parse_args(['--q5'])
 
     if args.q23:
 
@@ -330,6 +364,48 @@ if __name__ == '__main__':
         pt1_t2_avg = np.mean(pt1_t2)
 
         print(k, pt1_t2_avg)
+
+    if args.q5:
+        t1 = 3
+        t2 = 6
+        nsteps = 25
+        tenure_steps = 13
+        nsims = 1000
+        r0 = 0.02
+        alpha = 3
+        sigma = 0.01
+        theta0 = 0.03
+        beta = 1
+        phi = 0.05
+        eta = 0.005
+        steps = int((nsteps-1) / t2)
+        tsteps = 4
+        strike_set = np.linspace(0.8, 1.2, 41)
+
+        t = np.linspace(0, t2, nsteps)
+        tenure = np.linspace(t1, t2, tenure_steps)
+
+        # MC simulation
+        theta_path_set = np.zeros((nsims, nsteps))
+        r_path_set = np.zeros((nsims, nsteps))
+
+        for i in range(0, nsims):
+            w_sim_r = Sim_Brownian_Motion(t)
+            w_sim_theta = Sim_Brownian_Motion(t)
+            [theta_path_set[i:], r_path_set[i:]] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, w_sim_theta)
+        int_matrix = r_path_set.reshape(nsims, nsteps)
+
+        eta = np.zeros(len(strike_set))
+        for i in range(len(strike_set)):
+            eta[i] = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])[0]
+        k = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])[1]
+
+        plt.plot([a*k for a in strike_set], eta, label='Black Implied Volatility')
+        plt.xlabel('Strike Price')
+        plt.ylabel('Volatility')
+        plt.title('Relationship Between Strike Price and Black Implied Volatility')
+        plt.legend()
+        plt.savefig('Q5.jpg')
 
 
 

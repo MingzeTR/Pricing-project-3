@@ -191,11 +191,26 @@ def swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix,t1, t2, k_pa
         value_sim[n] = annuity * max(swap_rate_sim[n] - k_param * swap_rate_avg, 0)
 
     value_sim_avg = np.mean(value_sim)
+    return value_sim_avg, annuity, swap_rate_avg
+    # omega = 2 * norm.ppf((value_sim_avg / (annuity * swap_rate_avg) + k_param) / (1 + k_param))
+    # eta = np.sqrt(omega / 3)
 
-    omega = 2 * norm.ppf((value_sim_avg / (annuity * swap_rate_avg) + k_param) / (1 + k_param))
-    eta = np.sqrt(omega / 3)
+    # return [eta, swap_rate_avg]
 
-    return [eta, swap_rate_avg]
+
+def solve_imp_vol(v_0, a_0, s_0, alpha_k):
+    imp_vol = np.arange(0.0001, 0.9999, 0.0001)
+    price_diff = np.zeros_like(imp_vol)
+
+    for i in range(len(imp_vol)):
+        vol = imp_vol[i] ** 2 * 3
+        # candidate = imp_vol[i] * np.sqrt(3)
+        price_diff[i] = v_0 / (a_0 * s_0) - (
+                (norm.cdf((np.log(1 / alpha_k) + 0.5 * vol ** 2) / vol))
+                - alpha_k * (norm.cdf((np.log(1 / alpha_k) - 0.5 * vol ** 2) / vol))
+        )
+    idx = np.argmin(abs(price_diff))
+    return imp_vol[idx]
 
 
 if __name__ == '__main__':
@@ -460,7 +475,7 @@ if __name__ == '__main__':
         t2 = 6
         nsteps = 25
         tenure_steps = 13
-        nsims = 1000
+        nsims = 5000
         r0 = 0.02
         alpha = 3
         sigma = 0.01
@@ -470,7 +485,7 @@ if __name__ == '__main__':
         eta = 0.005
         steps = int((nsteps-1) / t2)
         tsteps = 4
-        strike_set = np.linspace(0.8, 1.2, 41)
+        strike_set = np.linspace(0.8, 1.2, 21)
 
         t = np.linspace(0, t2, nsteps)
         tenure = np.linspace(t1, t2, tenure_steps)
@@ -486,11 +501,16 @@ if __name__ == '__main__':
         int_matrix = r_path_set.reshape(nsims, nsteps)
 
         eta = np.zeros(len(strike_set))
+        v0 = np.zeros(len(strike_set))
+        a0 = np.zeros(len(strike_set))
+        s0 = np.zeros(len(strike_set))
         for i in range(len(strike_set)):
-            eta[i] = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])[0]
-        k = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])[1]
-
-        plt.plot([a*k for a in strike_set], eta, label='Black Implied Volatility')
+            [v0[i], a0[i], s0[i]] = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])
+            eta[i] = solve_imp_vol(v0[i], a0[i], s0[i], strike_set[i])
+            # eta[i] = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])[0]
+        # k = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])[1]
+        print(v0,a0,s0)
+        plt.plot([a*s0 for a in strike_set], eta, label='Black Implied Volatility')
         plt.xlabel('Strike Price')
         plt.ylabel('Volatility')
         plt.title('Relationship Between Strike Price and Black Implied Volatility')

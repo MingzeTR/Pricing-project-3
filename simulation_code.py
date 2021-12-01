@@ -203,7 +203,7 @@ def solve_imp_vol(v_0, a_0, s_0, alpha_k):
     price_diff = np.zeros_like(imp_vol)
 
     for i in range(len(imp_vol)):
-        vol = imp_vol[i] ** 2 * 3
+        vol = imp_vol[i] * np.sqrt(3)
         # candidate = imp_vol[i] * np.sqrt(3)
         price_diff[i] = v_0 / (a_0 * s_0) - (
                 (norm.cdf((np.log(1 / alpha_k) + 0.5 * vol ** 2) / vol))
@@ -475,7 +475,7 @@ if __name__ == '__main__':
         t2 = 6
         nsteps = 25
         tenure_steps = 13
-        nsims = 5000
+        nsims = 10000
         r0 = 0.02
         alpha = 3
         sigma = 0.01
@@ -485,7 +485,7 @@ if __name__ == '__main__':
         eta = 0.005
         steps = int((nsteps-1) / t2)
         tsteps = 4
-        strike_set = np.linspace(0.8, 1.2, 21)
+        strike_set = np.linspace(0.8, 1.2, 41)
 
         t = np.linspace(0, t2, nsteps)
         tenure = np.linspace(t1, t2, tenure_steps)
@@ -514,7 +514,7 @@ if __name__ == '__main__':
         plt.xlabel('Strike Price')
         plt.ylabel('Volatility')
         plt.title('Relationship Between Strike Price and Black Implied Volatility')
-        plt.legend()
+        # plt.legend()
         plt.savefig('Q5.jpg')
 
 

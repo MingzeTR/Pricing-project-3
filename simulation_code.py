@@ -165,6 +165,131 @@ def analytic_formula_curve(r0, alpha, beta, sigma, theta0, phi, eta, T, t):
             - analytic_a(alpha, beta, sigma, phi, eta, T, t)) / (T - t)
 
 
+def forward_neutral_int_elur(T1, T2, r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, w_sim_theta):
+    dt = t[1] - t[0]
+
+    theta_path_for = np.zeros(len(t))
+    theta_path_for[0] = theta0
+
+    r_path_for = np.zeros(len(t))
+    r_path_for[0] = r0
+
+    # Euler theta and r
+    for i in range(len(t) - 1):
+        B_T1 = analytic_b(alpha, T1, t[i])
+        B_T2 = analytic_b(alpha, T2, t[i])
+        C_T1 = analytic_c(alpha, beta, T1, t[i])
+        C_T2 = analytic_c(alpha, beta, T2, t[i])
+
+        lambda1 = sigma * (B_T1 ** 2) / (B_T1 - B_T2)
+        lambda2 = eta * (C_T1 ** 2) / (C_T1 - C_T2)
+
+        theta_path_for[i + 1] = theta_path_for[i] + (beta * (phi - theta_path_for[i]) - lambda2 * eta) * dt + eta * (
+                    w_sim_theta[i + 1] - w_sim_theta[i])
+        r_path_for[i + 1] = r_path_for[i] + (
+                    alpha * (theta_path_for[i] - r_path_for[i]) - lambda1 * sigma) * dt + sigma * (
+                                        w_sim_r[i + 1] - w_sim_r[i])
+
+    return theta_path_for, r_path_for
+
+
+def forward_bond_price_T1(T1, T2, t, step, r_path, alpha, beta, sigma, eta):
+    dt = t[1] - t[0]
+    bank_account = np.zeros(int(t2 * step) + 1)
+    bank_account[0] = 1
+    for i in range(0, t2 * step):
+        B_T1 = analytic_b(alpha, T1, t[i])
+        B_T2 = analytic_b(alpha, T2, t[i])
+        C_T1 = analytic_c(alpha, beta, T1, t[i])
+        C_T2 = analytic_c(alpha, beta, T2, t[i])
+
+        lambda1 = sigma * (B_T1 ** 2) / (B_T1 - B_T2)
+        lambda2 = eta * (C_T1 ** 2) / (C_T1 - C_T2)
+
+        bank_account[i + 1] = bank_account[i] + (r_path[i] + lambda1 * B_T1 * sigma + lambda2 * C_T1 * eta) * \
+                              bank_account[i] * dt
+        # bank_account[i+1] = bank_account[i]*np.exp(r_path[i]*dt)
+    return bank_account[t1 * step] / bank_account[t2 * step]
+
+
+def forward_bond_price_T2(T1, T2, t, step, r_path, alpha, beta, sigma, eta):
+    dt = t[1] - t[0]
+    bank_account = np.zeros(int(t2 * step) + 1)
+    bank_account[0] = 1
+    for i in range(0, t2 * step):
+        B_T1 = analytic_b(alpha, T1, t[i])
+        B_T2 = analytic_b(alpha, T2, t[i])
+        C_T1 = analytic_c(alpha, beta, T1, t[i])
+        C_T2 = analytic_c(alpha, beta, T2, t[i])
+
+        lambda1 = sigma * (B_T1 ** 2) / (B_T1 - B_T2)
+        lambda2 = eta * (C_T1 ** 2) / (C_T1 - C_T2)
+
+        bank_account[i + 1] = bank_account[i] + (r_path[i] + lambda1 * B_T2 * sigma + lambda2 * C_T2 * eta) * \
+                              bank_account[i] * dt
+        # bank_account[i+1] = bank_account[i]*np.exp(r_path[i]*dt)
+    return bank_account[t1 * step] / bank_account[t2 * step]
+
+
+def forward_bank_account(T1, T22, t, step, r_path, alpha, beta, sigam, eta):
+    dt = t[1] - t[0]
+    bank_account = np.zeros(int(t2 * step) + 1)
+    bank_account[0] = 1
+    for i in range(0, t2 * step):
+        B_T1 = analytic_b(alpha, T1, t[i])
+        B_T2 = analytic_b(alpha, T2, t[i])
+        C_T1 = analytic_c(alpha, beta, T1, t[i])
+        C_T2 = analytic_c(alpha, beta, T2, t[i])
+
+        lambda1 = sigma * (B_T1 ** 2) / (B_T1 - B_T2)
+        lambda2 = eta * (C_T1 ** 2) / (C_T1 - C_T2)
+
+        bank_account[i + 1] = bank_account[i] + (r_path[i] + lambda1 * B_T1 * sigma + lambda2 * C_T1 * eta) * \
+                              bank_account[i] * dt
+        # bank_account[i+1] = bank_account[i]*np.exp(r_path[i]*dt)
+    return bank_account
+
+
+def H1_sq(t1, t2, t, alpha, sigma):
+    m1 = np.exp(-alpha * (t1 - t))
+    m2 = np.exp(-alpha * (t2 - t))
+
+    temp_H1 = sigma ** 2 / (2 * alpha ** 3) * ((np.exp(-alpha * (t2 - t1)) - 1) ** 2 - (m2 - m1) ** 2)
+    return temp_H1
+
+
+def H2_sq(t1, t2, t, alpha, beta, sigma, eta):
+    m1 = np.exp(-alpha * (t1 - t))
+    m2 = np.exp(-alpha * (t2 - t))
+    n1 = np.exp(-beta * (t1 - t))
+    n2 = np.exp(-beta * (t2 - t))
+
+    p1 = beta ** 2 / (2 * alpha) * ((np.exp(-alpha * (t2 - t1)) - 1) ** 2 - (m2 - m1) ** 2)
+    p2 = -2 * alpha * beta / (alpha + beta) * (
+                (np.exp(-alpha * (t2 - t1)) - 1) * (np.exp(-beta * (t2 - t1)) - 1) - (m2 - m1) * (n2 - n1))
+    p3 = alpha ** 2 / (2 * beta) * ((np.exp(-beta * (t2 - t1)) - 1) ** 2 - (n2 - n1) ** 2)
+
+    H2_temp = eta ** 2 / (beta ** 2 * (alpha - beta) ** 2) * (p1 + p2 + p3)
+
+    return H2_temp
+
+
+def analytic_formula(r0, alpha, beta, sigma, theta0, phi, eta, T, t):
+    return np.exp(- analytic_b(alpha, T, t) * r0
+                  - analytic_c(alpha, beta, T, t) * theta0
+                  + analytic_a(alpha, beta, sigma, phi, eta, T, t))
+
+
+def bank_account(t1, t2, t, step, r_path):
+    dt = t[1] - t[0]
+    bank_account = np.zeros(int(t2 * step)+1)
+    bank_account[0] = 1
+    for i in range(0, t2 * step):
+        bank_account[i+1] = bank_account[i] + r_path[i] * bank_account[i] * dt
+        #bank_account[i+1] = bank_account[i]*np.exp(r_path[i]*dt)
+    return bank_account
+
+
 def swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix,t1, t2, k_param):
     # fixed leg value
     fixed_leg = np.zeros(nsims)
@@ -192,10 +317,6 @@ def swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix,t1, t2, k_pa
 
     value_sim_avg = np.mean(value_sim)
     return value_sim_avg, annuity, swap_rate_avg
-    # omega = 2 * norm.ppf((value_sim_avg / (annuity * swap_rate_avg) + k_param) / (1 + k_param))
-    # eta = np.sqrt(omega / 3)
-
-    # return [eta, swap_rate_avg]
 
 
 def solve_imp_vol(v_0, a_0, s_0, alpha_k):
@@ -385,89 +506,112 @@ if __name__ == '__main__':
 
     if args.q4:
         # Q4
-        t1 = 3
-        t2 = 5
-        nsteps = 40
-        nsims = 1000
-        r0 = 0.02
-        alpha = 3
-        sigma = 0.01
-        theta0 = 0.03
-        beta = 1
-        phi = 0.05
-        eta = 0.005
-        steps = int(nsteps / t2)
-        strike_set = np.linspace(0.8, 1.2, 41)
+        # Analytic Version\
+        T1 = 3
+        T2 = 5
 
-        t = np.linspace(0, t2, nsteps)
+        P0_T1 = analytic_formula(r0, alpha, beta, sigma, theta0, phi, eta, T1, 0)
+        P0_T2 = analytic_formula(r0, alpha, beta, sigma, theta0, phi, eta, T2, 0)
+        K = P0_T2 / P0_T1
 
-        # MC simulation
+        H1_T1_sq = H1_sq(T1, T2, 0, alpha, sigma)
+        H2_T1_sq = H2_sq(T1, T2, 0, alpha, beta, sigma, eta)
+
+        K_steps = 11
+        K_factor = np.linspace(0.95, 1.05, K_steps)
+        g_T1 = np.zeros(K_steps)
+
+        for i in range(0, K_steps):
+            K_temp = K * K_factor[i]
+
+            d1 = (np.log(P0_T2 / (K_temp * P0_T1)) + 0.5 * (H1_T1_sq + H2_T1_sq)) / (np.sqrt(H1_T1_sq + H2_T1_sq))
+            d2 = (np.log(P0_T2 / (K_temp * P0_T1)) - 0.5 * (H1_T1_sq + H2_T1_sq)) / (np.sqrt(H1_T1_sq + H2_T1_sq))
+            g_T1[i] = P0_T2 * norm.cdf(d1) - P0_T1 * K_temp * norm.cdf(d2)
+
+        # Risk-Netrual MC simulation
         theta_path_set = np.zeros((nsims, nsteps))
         r_path_set = np.zeros((nsims, nsteps))
+        t = np.linspace(0, T2, nsteps)
+        steps = int(nsteps / T2)
 
-        # risk neutral
-        # for i in range(0, nsims):
-        #     w_sim_r = Sim_Brownian_Motion(t)
-        #     w_sim_theta = Sim_Brownian_Motion(t)
-        #     [theta_path_set[i:], r_path_set[i:]] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, w_sim_theta)
-        # int_matrix = r_path_set.reshape(nsims, nsteps)
-        #
-        # p0_t1 = np.zeros(nsims)
-        # p0_t2 = np.zeros(nsims)
-        # pt1_t2 = np.zeros(nsims)
-        # for n in range(0, nsims):
-        #     p0_t1[n] = bond_price(0, t1, t, steps, int_matrix[n])
-        #     p0_t2[n] = bond_price(0, t2, t, steps, int_matrix[n])
-        #     pt1_t2[n] = bond_price(t1, t2, t, steps, int_matrix[n])
-        #
-        # k = np.mean(p0_t2) / np.mean(p0_t1)
-        # # pt1_t2_avg = np.mean(pt1_t2)
-        #
-        # payoff = np.zeros(len(strike_set))
-        # for i in range(len(strike_set)):
-        #     payoff_sim = np.zeros(nsims)
-        #     for j in range(nsims):
-        #         payoff_sim[j] = max(pt1_t2[j] - (p0_t2[j] / p0_t1[j]) * strike_set[i], 0)
-        #     payoff[i] = np.mean(payoff_sim)
-        #
-        # plt.plot([s*k for s in strike_set], payoff, label='Risk Neutral')
-        # plt.xlabel('Strike Price')
-        # plt.ylabel('Option Price')
-        # plt.legend()
-        # plt.savefig('Q4.fig')
-        # print(k, payoff)
-
-        # forward neutral
-        theta_path_for = np.zeros((nsims, nsteps))
-        r_path_for = np.zeros((nsims, nsteps))
         for i in range(0, nsims):
             w_sim_r = Sim_Brownian_Motion(t)
             w_sim_theta = Sim_Brownian_Motion(t)
-            [theta_path_for[i:], r_path_for[i:]] = forward_neutral_int_elur(t1, t2, r0, alpha, beta, sigma, theta0, phi, eta, t,
-                                                                    w_sim_r, w_sim_theta)
-        int_for_matrix = r_path_for.reshape(nsims, nsteps)
-        theta_for_matrix = theta_path_for.reshape(nsims, nsteps)
+            [theta_path_set[i:], r_path_set[i:]] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t,
+                                                                         w_sim_r, w_sim_theta)
+        int_matrix = r_path_set.reshape(nsims, nsteps)
 
-        p0_t1_for = np.zeros(nsims)
-        p0_t2_for = np.zeros(nsims)
-        pt1_t2_for = np.zeros(nsims)
-        for n in range(0, nsims):
-            p0_t1_for[n] = bond_price_forward(0, t1, t, steps, r_path_for[n], theta_path_for[n], alpha, beta, sigma, phi, eta)
-            p0_t2_for[n] = bond_price_forward(0, t2, t, steps, r_path_for[n], theta_path_for[n], alpha, beta, sigma, phi, eta)
-            pt1_t2_for[n] = bond_price_forward(t1, t2, t, steps, r_path_for[n], theta_path_for[n], alpha, beta, sigma, phi, eta)
+        K_steps = 11
+        K_factor = np.linspace(0.95, 1.05, K_steps)
 
-        k_for = np.mean(p0_t2_for) / np.mean(p0_t1_for)
-        # pt1_t2_avg = np.mean(pt1_t2)
+        p0_t1_sim = np.zeros(nsims)
+        p0_t2_sim = np.zeros(nsims)
+        pt1_t2_sim = np.zeros(nsims)
+        option_price = np.zeros([nsims, K_steps])
+        K_sim = np.zeros(nsims)
+        K_temp_sim = np.zeros(nsims)
+        g_T_risk_sim = np.zeros(K_steps)
+        K_final = np.zeros(K_steps)
 
-        payoff_for = np.zeros(len(strike_set))
-        for i in range(len(strike_set)):
-            payoff_for_sim = np.zeros(nsims)
-            for j in range(nsims):
-                payoff_for_sim[j] = max(pt1_t2_for[j] - (p0_t2_for[j] / p0_t1_for[j]) * strike_set[i], 0)
-            payoff_for[i] = np.mean(payoff_for_sim)
-        plt.plot([s*k_for for s in strike_set], payoff_for, label='Forward Neutral')
-        plt.xlabel('Strike Price')
+        for i in range(0, K_steps):
+            for n in range(0, nsims):
+                p0_t1_sim[n] = bond_price(0, T1, t, steps, int_matrix[n])
+                p0_t2_sim[n] = bond_price(0, T2, t, steps, int_matrix[n])
+                pt1_t2_sim[n] = bond_price(T1, T2, t, steps, int_matrix[n])
+                K_sim[n] = p0_t2_sim[n] / p0_t1_sim[n]
+                # K_sim[n] = P0_T2/P0_T1
+                K_temp_sim[n] = K_sim[n] * K_factor[i]
+                discount = bank_account(0, T2, t, steps, int_matrix[n])
+                option_price[n, i] = np.maximum((pt1_t2_sim[n] - K_temp_sim[n]), 0) / discount[T1 * steps]
+            g_T_risk_sim[i] = np.mean(option_price[:, i])
+            K_final[i] = np.mean(K_temp_sim)
+
+        # MC simulation Forward-netural
+        theta_path_set_for = np.zeros((nsims, nsteps))
+        r_path_set_for = np.zeros((nsims, nsteps))
+        t = np.linspace(0, T2, nsteps)
+        steps = int(nsteps / T2)
+
+        for i in range(0, nsims):
+            w_sim_r = Sim_Brownian_Motion(t)
+            w_sim_theta = Sim_Brownian_Motion(t)
+            [theta_path_set_for[i:], r_path_set_for[i:]] = forward_neutral_int_elur(T1, T2, r0, alpha, beta, sigma,
+                                                                                    theta0, phi, eta, t, w_sim_r,
+                                                                                    w_sim_theta)
+        int_matrix_for = r_path_set_for.reshape(nsims, nsteps)
+
+        K_steps = 11
+        K_factor = np.linspace(0.95, 1.05, K_steps)
+
+        p0_t1_for_sim = np.zeros(nsims)
+        p0_t2_for_sim = np.zeros(nsims)
+        pt1_t2_for_sim = np.zeros(nsims)
+        option_price_for = np.zeros([nsims, K_steps])
+        K_for_sim = np.zeros(nsims)
+        K_temp_for_sim = np.zeros(nsims)
+        g_T_forward_sim = np.zeros(K_steps)
+        K_final_for = np.zeros(K_steps)
+
+        for i in range(0, K_steps):
+            for n in range(0, nsims):
+                p0_t1_for_sim[n] = forward_bond_price_T1(0, T1, t, steps, int_matrix_for[n], alpha, beta, sigma, eta)
+                p0_t2_for_sim[n] = forward_bond_price_T2(0, T2, t, steps, int_matrix_for[n], alpha, beta, sigma, eta)
+                pt1_t2_for_sim[n] = forward_bond_price_T2(T1, T2, t, steps, int_matrix_for[n], alpha, beta, sigma, eta)
+                K_for_sim[n] = p0_t2_for_sim[n] / p0_t1_for_sim[n]
+                # K_for_sim[n] = P0_T2/P0_T1
+                K_temp_for_sim[n] = K_for_sim[n] * K_factor[i]
+                discount_for = forward_bank_account(0, T2, t, steps, int_matrix_for[n], alpha, beta, sigma, eta)
+                option_price_for[n, i] = np.maximum((pt1_t2_for_sim[n] - K_temp_for_sim[n]), 0) / discount_for[
+                    T1 * steps]
+            g_T_forward_sim[i] = np.mean(option_price_for[:, i])
+            K_final_for[i] = np.mean(K_temp_for_sim)
+
+        plt.plot(K * K_factor, g_T1, '-D', label='Analytic Option Price')
+        plt.plot(K * K_factor, g_T_risk_sim, '-o', label='Risk-Netural Simulated Option Price')
+        plt.plot(K * K_factor, g_T_forward_sim, '--', label='Forward-Netural Simulated Option Price')
+        plt.xlabel('Strike')
         plt.ylabel('Option Price')
+        plt.title('Option Price Simulation under Different Measures')
         plt.legend()
 
 
@@ -512,15 +656,15 @@ if __name__ == '__main__':
         fig, ax1 = plt.subplots()
 
         ax2 = ax1.twinx()
-        ax1.plot([a*s0 for a in strike_set], eta, 'g-', label='Black Implied Volatility')
-        ax2.plot([a*s0 for a in strike_set], v0, 'b-',label='Swaption Price')
+        ax1.plot([a*s0[0] for a in strike_set], eta, 'g-', label='Black Implied Volatility')
+        ax2.plot([a*s0[0] for a in strike_set], v0, 'b-',label='Swaption Price')
 
         ax1.set_xlabel('Strike Price')
         ax1.set_ylabel('Volatility', color='g')
         ax2.set_ylabel('Swaption Price', color='b')
         plt.title('Relationship Between Swaption price, Strike Price, and Black Implied Volatility')
         ax1.legend()
-        ax2.legend()
+        ax2.legend(loc='upper right', bbox_to_anchor=(1, 0.9))
         plt.savefig('Q5_s_k.jpg')
 
         # plt.plot([a*s0 for a in strike_set], eta, label='Black Implied Volatility')

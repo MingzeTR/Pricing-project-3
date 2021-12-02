@@ -199,7 +199,7 @@ def swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix,t1, t2, k_pa
 
 
 def solve_imp_vol(v_0, a_0, s_0, alpha_k):
-    imp_vol = np.arange(0.0001, 0.9999, 0.0001)
+    imp_vol = np.arange(0.00001, 0.99999, 0.00001)
     price_diff = np.zeros_like(imp_vol)
 
     for i in range(len(imp_vol)):
@@ -215,13 +215,14 @@ def solve_imp_vol(v_0, a_0, s_0, alpha_k):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run different questions')
-    parser.add_argument('--q23', action='store_true')
+    parser.add_argument('--q2', action='store_true')
+    parser.add_argument('--q3', action='store_true')
     parser.add_argument('--q4', action='store_true')
     parser.add_argument('--q5', action='store_true')
 
     args = parser.parse_args(['--q5'])
 
-    if args.q23:
+    if args.q2:
 
         T = 10
         nsteps = 40
@@ -282,7 +283,7 @@ if __name__ == '__main__':
         plt.legend()
         plt.savefig('A3_Q2_MeanRevert.jpg')
 
-
+    if args.q3:
         # Q3
         theta_bond_yield = np.empty([5, nsteps])
         theta_range = [0.02, 0.05, 0.1, 0.3, 0.5]
@@ -507,15 +508,34 @@ if __name__ == '__main__':
         for i in range(len(strike_set)):
             [v0[i], a0[i], s0[i]] = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])
             eta[i] = solve_imp_vol(v0[i], a0[i], s0[i], strike_set[i])
-            # eta[i] = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])[0]
-        # k = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])[1]
-        print(v0,a0,s0)
-        plt.plot([a*s0 for a in strike_set], eta, label='Black Implied Volatility')
-        plt.xlabel('Strike Price')
-        plt.ylabel('Volatility')
-        plt.title('Relationship Between Strike Price and Black Implied Volatility')
-        # plt.legend()
-        plt.savefig('Q5.jpg')
+
+        fig, ax1 = plt.subplots()
+
+        ax2 = ax1.twinx()
+        ax1.plot([a*s0 for a in strike_set], eta, 'g-', label='Black Implied Volatility')
+        ax2.plot([a*s0 for a in strike_set], v0, 'b-',label='Swaption Price')
+
+        ax1.set_xlabel('Strike Price')
+        ax1.set_ylabel('Volatility', color='g')
+        ax2.set_ylabel('Swaption Price', color='b')
+        plt.title('Relationship Between Swaption price, Strike Price, and Black Implied Volatility')
+        ax1.legend()
+        ax2.legend()
+        plt.savefig('Q5_s_k.jpg')
+
+        # plt.plot([a*s0 for a in strike_set], eta, label='Black Implied Volatility')
+        # plt.xlabel('Strike Price')
+        # plt.ylabel('Volatility')
+        # plt.title('Relationship Between Strike Price and Black Implied Volatility')
+        # # plt.legend()
+        # plt.savefig('Q5.jpg')
+        #
+        # plt.plot(v0, eta, label='Swaption Price')
+        # plt.xlabel('Swaption Price')
+        # plt.ylabel('Volatility')
+        # plt.title('Relationship Between Black Implied Volatility and Swaption Price')
+        # # plt.legend()
+        # plt.savefig('Q5_s.jpg')
 
 
 

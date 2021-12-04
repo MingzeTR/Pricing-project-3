@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 from scipy import e
 import argparse
-
+import pandas as pd
 
 def Sim_Brownian_Motion(t):
     # store the paths of the Brownian motion
@@ -290,37 +290,26 @@ def bank_account(t1, t2, t, step, r_path):
     return bank_account
 
 
-def swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix,t1, t2, k_param):
-    # fixed leg value
-    fixed_leg = np.zeros(nsims)
-    swap_rate = np.zeros(nsims)
-    discount = np.zeros(nsims)
-    for i in range(nsims):
-        for j in range(1, tenure_steps):
-            fixed_leg[i] += bond_price(0, tenure[j], t, tsteps, int_matrix[i]) * 0.25
-        swap_rate[i] = (bond_price(0, t1, t, tsteps, int_matrix[i])
-                        - bond_price(0, t2, t, tsteps, int_matrix[i])) / fixed_leg[i]
-        discount[i] = bond_price(0, t1, t, tsteps, int_matrix[i])
-    annuity = np.mean(fixed_leg)
-    swap_rate_avg = np.mean(swap_rate)
-
+def swaption_sim(annuity, swap_rate_avg, nsims, tenure, tenure_steps, t, tsteps, int_matrix,t1, t2, k_param):
     # simulate swap rate at t0
     fixed_leg_sim = np.zeros(nsims)
     swap_rate_sim = np.zeros(nsims)
     value_sim = np.zeros(nsims)
+    # vol = np.zeros(nsims)
     for n in range(0, nsims):
         for j in range(1, tenure_steps):
             fixed_leg_sim[n] += bond_price(t1, tenure[j], t, tsteps, int_matrix[n]) * 0.25
         swap_rate_sim[n] = (bond_price(t1, t1, t, tsteps, int_matrix[n])
                             - bond_price(t1, t2, t, tsteps, int_matrix[n])) / fixed_leg_sim[n]
         value_sim[n] = annuity * max(swap_rate_sim[n] - k_param * swap_rate_avg, 0)
+        # print('vol' + str(n))
+        # vol[n] = solve_imp_vol(value_sim[n], annuity, swap_rate_avg, k_param)
 
-    value_sim_avg = np.mean(value_sim)
-    return value_sim_avg, annuity, swap_rate_avg
-
+    # return np.mean(vol), annuity, swap_rate_avg
+    return value_sim
 
 def solve_imp_vol(v_0, a_0, s_0, alpha_k):
-    imp_vol = np.arange(0.00001, 0.99999, 0.00001)
+    imp_vol = np.arange(0.0001, 0.9999, 0.0001)
     price_diff = np.zeros_like(imp_vol)
 
     for i in range(len(imp_vol)):
@@ -331,6 +320,7 @@ def solve_imp_vol(v_0, a_0, s_0, alpha_k):
                 - alpha_k * (norm.cdf((np.log(1 / alpha_k) - 0.5 * vol ** 2) / vol))
         )
     idx = np.argmin(abs(price_diff))
+    print('vol_done')
     return imp_vol[idx]
 
 
@@ -620,7 +610,7 @@ if __name__ == '__main__':
         t2 = 6
         nsteps = 25
         tenure_steps = 13
-        nsims = 10000
+        nsims = 1000
         r0 = 0.02
         alpha = 3
         sigma = 0.01
@@ -645,19 +635,39 @@ if __name__ == '__main__':
             [theta_path_set[i:], r_path_set[i:]] = risk_neutral_int_elur(r0, alpha, beta, sigma, theta0, phi, eta, t, w_sim_r, w_sim_theta)
         int_matrix = r_path_set.reshape(nsims, nsteps)
 
-        eta = np.zeros(len(strike_set))
-        v0 = np.zeros(len(strike_set))
-        a0 = np.zeros(len(strike_set))
-        s0 = np.zeros(len(strike_set))
+        fixed_leg = np.zeros(nsims)
+        swap_rate = np.zeros(nsims)
+        discount = np.zeros(nsims)
+        for i in range(nsims):
+            for j in range(1, tenure_steps):
+                fixed_leg[i] += bond_price(0, tenure[j], t, tsteps, int_matrix[i]) * 0.25
+            swap_rate[i] = (bond_price(0, t1, t, tsteps, int_matrix[i])
+                            - bond_price(0, t2, t, tsteps, int_matrix[i])) / fixed_leg[i]
+            discount[i] = bond_price(0, t1, t, tsteps, int_matrix[i])
+        annuity = np.mean(fixed_leg)
+        swap_rate_avg = np.mean(swap_rate)
+
+        v0 = np.zeros((len(strike_set), nsims))
+        eta = np.zeros((len(strike_set), nsims))
+        # a0 = np.zeros(len(strike_set))
+        # s0 = np.zeros(len(strike_set))
+
         for i in range(len(strike_set)):
-            [v0[i], a0[i], s0[i]] = swaption_sim(nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])
-            eta[i] = solve_imp_vol(v0[i], a0[i], s0[i], strike_set[i])
+            myfunc = lambda value: solve_imp_vol(value, a_0=annuity, s_0=swap_rate_avg, alpha_k=strike_set[i])
+            vfunc = np.vectorize(myfunc)
+            print('swap'+str(i))
+            v0[i, :] = swaption_sim(annuity, swap_rate_avg, nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])
+            eta[i, :] = vfunc(v0[i, :])
+            # eta[i, :] = solve_imp_vol(v0[i, :], annuity, swap_rate_avg, strike_set[i])
+
+        eta_avg = np.asarray(eta.mean(1)).reshape(-1)
+        v_avg = np.asarray(v0.mean(1)).reshape(-1)
 
         fig, ax1 = plt.subplots()
 
         ax2 = ax1.twinx()
-        ax1.plot([a*s0[0] for a in strike_set], eta, 'g-', label='Black Implied Volatility')
-        ax2.plot([a*s0[0] for a in strike_set], v0, 'b-',label='Swaption Price')
+        ax1.plot([a*swap_rate_avg for a in strike_set], eta_avg, 'g-', label='Black Implied Volatility')
+        ax2.plot([a*swap_rate_avg for a in strike_set], v_avg, 'b-',label='Swaption Price')
 
         ax1.set_xlabel('Strike Price')
         ax1.set_ylabel('Volatility', color='g')
@@ -665,7 +675,7 @@ if __name__ == '__main__':
         plt.title('Relationship Between Swaption price, Strike Price, and Black Implied Volatility')
         ax1.legend()
         ax2.legend(loc='upper right', bbox_to_anchor=(1, 0.9))
-        plt.savefig('Q5_s_k.jpg')
+        plt.savefig('Q5_avg.jpg')
 
         # plt.plot([a*s0 for a in strike_set], eta, label='Black Implied Volatility')
         # plt.xlabel('Strike Price')

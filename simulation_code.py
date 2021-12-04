@@ -193,15 +193,15 @@ def forward_neutral_int_elur(T1, T2, r0, alpha, beta, sigma, theta0, phi, eta, t
     return theta_path_for, r_path_for
 
 
-def forward_bond_price_T1(T1, T2, t, step, r_path, alpha, beta, sigma, eta):
+def forward_bond_price_T1(t1, t2, t, step, r_path, alpha, beta, sigma, eta, T1_Mat, T2_Mat):
     dt = t[1] - t[0]
     bank_account = np.zeros(int(t2 * step) + 1)
     bank_account[0] = 1
     for i in range(0, t2 * step):
-        B_T1 = analytic_b(alpha, T1, t[i])
-        B_T2 = analytic_b(alpha, T2, t[i])
-        C_T1 = analytic_c(alpha, beta, T1, t[i])
-        C_T2 = analytic_c(alpha, beta, T2, t[i])
+        B_T1 = analytic_b(alpha, T1_Mat, t[i])
+        B_T2 = analytic_b(alpha, T2_Mat, t[i])
+        C_T1 = analytic_c(alpha, beta, T1_Mat, t[i])
+        C_T2 = analytic_c(alpha, beta, T2_Mat, t[i])
 
         lambda1 = sigma * (B_T1 ** 2) / (B_T1 - B_T2)
         lambda2 = eta * (C_T1 ** 2) / (C_T1 - C_T2)
@@ -212,15 +212,15 @@ def forward_bond_price_T1(T1, T2, t, step, r_path, alpha, beta, sigma, eta):
     return bank_account[t1 * step] / bank_account[t2 * step]
 
 
-def forward_bond_price_T2(T1, T2, t, step, r_path, alpha, beta, sigma, eta):
+def forward_bond_price_T2(t1, t2, t, step, r_path, alpha, beta, sigma, eta, T1_Mat, T2_Mat):
     dt = t[1] - t[0]
     bank_account = np.zeros(int(t2 * step) + 1)
     bank_account[0] = 1
     for i in range(0, t2 * step):
-        B_T1 = analytic_b(alpha, T1, t[i])
-        B_T2 = analytic_b(alpha, T2, t[i])
-        C_T1 = analytic_c(alpha, beta, T1, t[i])
-        C_T2 = analytic_c(alpha, beta, T2, t[i])
+        B_T1 = analytic_b(alpha, T1_Mat, t[i])
+        B_T2 = analytic_b(alpha, T2_Mat, t[i])
+        C_T1 = analytic_c(alpha, beta, T1_Mat, t[i])
+        C_T2 = analytic_c(alpha, beta, T2_Mat, t[i])
 
         lambda1 = sigma * (B_T1 ** 2) / (B_T1 - B_T2)
         lambda2 = eta * (C_T1 ** 2) / (C_T1 - C_T2)
@@ -231,15 +231,15 @@ def forward_bond_price_T2(T1, T2, t, step, r_path, alpha, beta, sigma, eta):
     return bank_account[t1 * step] / bank_account[t2 * step]
 
 
-def forward_bank_account(T1, T22, t, step, r_path, alpha, beta, sigam, eta):
+def forward_bank_account(t1, t2, t, step, r_path, alpha, beta, sigam, eta, T1_Mat, T2_Mat):
     dt = t[1] - t[0]
     bank_account = np.zeros(int(t2 * step) + 1)
     bank_account[0] = 1
     for i in range(0, t2 * step):
-        B_T1 = analytic_b(alpha, T1, t[i])
-        B_T2 = analytic_b(alpha, T2, t[i])
-        C_T1 = analytic_c(alpha, beta, T1, t[i])
-        C_T2 = analytic_c(alpha, beta, T2, t[i])
+        B_T1 = analytic_b(alpha, T1_Mat, t[i])
+        B_T2 = analytic_b(alpha, T2_Mat, t[i])
+        C_T1 = analytic_c(alpha, beta, T1_Mat, t[i])
+        C_T2 = analytic_c(alpha, beta, T2_Mat, t[i])
 
         lambda1 = sigma * (B_T1 ** 2) / (B_T1 - B_T2)
         lambda2 = eta * (C_T1 ** 2) / (C_T1 - C_T2)
@@ -499,6 +499,15 @@ if __name__ == '__main__':
         # Analytic Version\
         T1 = 3
         T2 = 5
+        nsteps = 40
+        nsims = 1000
+        r0 = 0.02
+        alpha = 3
+        sigma = 0.01
+        theta0 = 0.03
+        beta = 1
+        phi = 0.05
+        eta = 0.005
 
         P0_T1 = analytic_formula(r0, alpha, beta, sigma, theta0, phi, eta, T1, 0)
         P0_T2 = analytic_formula(r0, alpha, beta, sigma, theta0, phi, eta, T2, 0)
@@ -584,13 +593,13 @@ if __name__ == '__main__':
 
         for i in range(0, K_steps):
             for n in range(0, nsims):
-                p0_t1_for_sim[n] = forward_bond_price_T1(0, T1, t, steps, int_matrix_for[n], alpha, beta, sigma, eta)
-                p0_t2_for_sim[n] = forward_bond_price_T2(0, T2, t, steps, int_matrix_for[n], alpha, beta, sigma, eta)
-                pt1_t2_for_sim[n] = forward_bond_price_T2(T1, T2, t, steps, int_matrix_for[n], alpha, beta, sigma, eta)
+                p0_t1_for_sim[n] = forward_bond_price_T1(0, T1, t, steps, int_matrix_for[n], alpha, beta, sigma, eta, T1, T2)
+                p0_t2_for_sim[n] = forward_bond_price_T2(0, T2, t, steps, int_matrix_for[n], alpha, beta, sigma, eta, T1, T2)
+                pt1_t2_for_sim[n] = forward_bond_price_T2(T1, T2, t, steps, int_matrix_for[n], alpha, beta, sigma, eta, T1, T2)
                 K_for_sim[n] = p0_t2_for_sim[n] / p0_t1_for_sim[n]
                 # K_for_sim[n] = P0_T2/P0_T1
                 K_temp_for_sim[n] = K_for_sim[n] * K_factor[i]
-                discount_for = forward_bank_account(0, T2, t, steps, int_matrix_for[n], alpha, beta, sigma, eta)
+                discount_for = forward_bank_account(0, T2, t, steps, int_matrix_for[n], alpha, beta, sigma, eta, T1, T2)
                 option_price_for[n, i] = np.maximum((pt1_t2_for_sim[n] - K_temp_for_sim[n]), 0) / discount_for[
                     T1 * steps]
             g_T_forward_sim[i] = np.mean(option_price_for[:, i])

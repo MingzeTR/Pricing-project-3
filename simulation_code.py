@@ -320,9 +320,23 @@ def solve_imp_vol(v_0, a_0, s_0, alpha_k):
                 - alpha_k * (norm.cdf((np.log(1 / alpha_k) - 0.5 * vol ** 2) / vol))
         )
     idx = np.argmin(abs(price_diff))
-    print('vol_done')
+    # print('vol_done')
     return imp_vol[idx]
 
+def solve_imp_vol_zero(alpha_k):
+    imp_vol = np.arange(0.00001, 0.99999, 0.00001)
+    price_diff = np.zeros_like(imp_vol)
+
+    for i in range(len(imp_vol)):
+        vol = imp_vol[i] * np.sqrt(3)
+        # candidate = imp_vol[i] * np.sqrt(3)
+        price_diff[i] = alpha_k - (
+                (norm.cdf((np.log(1 / alpha_k) + 0.5 * vol ** 2) / vol))
+                / (norm.cdf((np.log(1 / alpha_k) - 0.5 * vol ** 2) / vol))
+        )
+    idx = np.argmin(abs(price_diff))
+    # print('vol_done')
+    return imp_vol[idx]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run different questions')
@@ -619,7 +633,7 @@ if __name__ == '__main__':
         t2 = 6
         nsteps = 25
         tenure_steps = 13
-        nsims = 1000
+        nsims = 10000
         r0 = 0.02
         alpha = 3
         sigma = 0.01
@@ -629,7 +643,7 @@ if __name__ == '__main__':
         eta = 0.005
         steps = int((nsteps-1) / t2)
         tsteps = 4
-        strike_set = np.linspace(0.8, 1.2, 41)
+        strike_set = np.linspace(0.95, 1.2, 11)
 
         t = np.linspace(0, t2, nsteps)
         tenure = np.linspace(t1, t2, tenure_steps)
@@ -658,19 +672,26 @@ if __name__ == '__main__':
 
         v0 = np.zeros((len(strike_set), nsims))
         eta = np.zeros((len(strike_set), nsims))
+        eta_avg = np.zeros(len(strike_set))
+        v_avg = np.zeros(len(strike_set))
         # a0 = np.zeros(len(strike_set))
         # s0 = np.zeros(len(strike_set))
 
+        # test = solve_imp_vol(0, a_0=annuity, s_0=swap_rate_avg, alpha_k=1)
+
         for i in range(len(strike_set)):
-            myfunc = lambda value: solve_imp_vol(value, a_0=annuity, s_0=swap_rate_avg, alpha_k=strike_set[i])
+            myfunc = lambda value: solve_imp_vol(value, a_0=annuity, s_0=swap_rate_avg, alpha_k=strike_set[i]) if value != 0 else np.NaN
             vfunc = np.vectorize(myfunc)
             print('swap'+str(i))
             v0[i, :] = swaption_sim(annuity, swap_rate_avg, nsims, tenure, tenure_steps, t, tsteps, int_matrix, t1, t2, strike_set[i])
             eta[i, :] = vfunc(v0[i, :])
+            eta_avg[i] = np.nanmean(eta[i, :])
+            v0[v0 == 0] = np.NaN
+            v_avg[i] = np.nanmean(v0[i, :])
             # eta[i, :] = solve_imp_vol(v0[i, :], annuity, swap_rate_avg, strike_set[i])
 
-        eta_avg = np.asarray(eta.mean(1)).reshape(-1)
-        v_avg = np.asarray(v0.mean(1)).reshape(-1)
+        # eta_avg = np.asarray(eta.mean(1)).reshape(-1)
+        # v_avg = np.asarray(v0.mean(1)).reshape(-1)
 
         fig, ax1 = plt.subplots()
 
@@ -682,7 +703,7 @@ if __name__ == '__main__':
         ax1.set_ylabel('Volatility', color='g')
         ax2.set_ylabel('Swaption Price', color='b')
         plt.title('Relationship Between Swaption price, Strike Price, and Black Implied Volatility')
-        ax1.legend()
+        ax1.legend(loc='upper right', bbox_to_anchor=(1, 1))
         ax2.legend(loc='upper right', bbox_to_anchor=(1, 0.9))
         plt.savefig('Q5_avg.jpg')
 
